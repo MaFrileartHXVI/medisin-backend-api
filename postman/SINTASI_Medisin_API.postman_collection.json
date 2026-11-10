@@ -1,0 +1,709 @@
+{
+	"info": {
+		"_postman_id": "919c3340-fef3-4083-81e9-sintasi-api-collection",
+		"name": "SINTASI - Medisin Fullstack Test API",
+		"description": "Postman Collection resmi untuk pengetesan REST API Backend Laravel - SINTASI Fullstack Developer Test.\nMencakup: Login (dengan encrypted payload), Pendaftaran Pasien (Auto No RM, Encrypted NIK & Email di DB), dan Pembuatan Kunjungan (Fetch by RM, Dynamic Visit Count), serta Kasus Uji Negatif.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "crypto_key",
+			"value": "SintasiSecurePayloadKey2026#X9!",
+			"type": "string"
+		},
+		{
+			"key": "enc_username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "enc_password",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "enc_wrong_user",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "enc_wrong_pass",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "dynamic_nik",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "dynamic_email",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Login - Success (Encrypted Payload)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Enkripsi username dan password menggunakan CryptoJS AES-256-CBC",
+									"const key = pm.collectionVariables.get('crypto_key') || 'SintasiSecurePayloadKey2026#X9!';",
+									"const rawUser = 'admin';",
+									"const rawPass = 'password123';",
+									"",
+									"const encUser = CryptoJS.AES.encrypt(rawUser, key).toString();",
+									"const encPass = CryptoJS.AES.encrypt(rawPass, key).toString();",
+									"",
+									"pm.collectionVariables.set('enc_username', encUser);",
+									"pm.collectionVariables.set('enc_password', encPass);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Login returns token', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data.token).to.be.a('string');",
+									"    pm.collectionVariables.set('auth_token', jsonData.data.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{enc_username}}\",\n    \"password\": \"{{enc_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Login - Negative (Wrong Password)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const key = pm.collectionVariables.get('crypto_key') || 'SintasiSecurePayloadKey2026#X9!';",
+									"const encUser = CryptoJS.AES.encrypt('admin', key).toString();",
+									"const encPass = CryptoJS.AES.encrypt('wrong_password_xyz', key).toString();",
+									"pm.collectionVariables.set('enc_wrong_user', encUser);",
+									"pm.collectionVariables.set('enc_wrong_pass', encPass);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Negative Test: Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{enc_wrong_user}}\",\n    \"password\": \"{{enc_wrong_pass}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Login - Negative (Empty Fields)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Negative Test: Status code is 422 Unprocessable', function () {",
+									"    pm.response.to.have.status(422);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"\",\n    \"password\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Authenticated User (Me)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Patients (Pendaftaran Pasien)",
+			"item": [
+				{
+					"name": "Get Next Auto MRN",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/patients/next-mrn",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patients",
+								"next-mrn"
+							]
+						}
+					}
+				},
+				{
+					"name": "List Patients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/patients",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patients"
+							]
+						}
+					}
+				},
+				{
+					"name": "Register Patient - Success (Auto MRN & Encrypted DB)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const randNik = '320101' + Math.floor(1000000000 + Math.random() * 9000000000);",
+									"pm.collectionVariables.set('dynamic_nik', randNik);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"    var res = pm.response.json();",
+									"    pm.expect(res.data.medical_record_number).to.match(/^RM\\d{4}$/);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Ratna Sari Dewi\",\n    \"national_id\": \"{{dynamic_nik}}\",\n    \"address\": \"Jl. Anggrek No. 15, Jakarta Selatan\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/patients",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patients"
+							]
+						}
+					}
+				},
+				{
+					"name": "Register Patient - Negative (Duplicate National ID)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Negative Test: Status code is 422', function () {",
+									"    pm.response.to.have.status(422);",
+									"    var res = pm.response.json();",
+									"    pm.expect(res.errors.national_id).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Duplikat NIK Pasien\",\n    \"national_id\": \"321412412312412\",\n    \"email\": \"duplikat.nik@example.com\",\n    \"address\": \"Jl. Percobaan No. 1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/patients",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patients"
+							]
+						}
+					}
+				},
+				{
+					"name": "Find Patient By MRN (For Visit Auto-fill)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var res = pm.response.json();",
+									"    pm.expect(res.data.medical_record_number).to.eql('RM0001');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/patients/by-mrn/RM0001",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patients",
+								"by-mrn",
+								"RM0001"
+							]
+						}
+					}
+				},
+				{
+					"name": "Find Patient By MRN - Negative (Not Found)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Negative Test: Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"    var res = pm.response.json();",
+									"    pm.expect(res.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/patients/by-mrn/RM9999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patients",
+								"by-mrn",
+								"RM9999"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Visits (Buat Kunjungan)",
+			"item": [
+				{
+					"name": "List All Visits",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/visits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"visits"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Visit - Success (Auto Dynamic Count)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"    var res = pm.response.json();",
+									"    pm.expect(res.success).to.be.true;",
+									"    pm.expect(res.data.id).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"medical_record_number\": \"RM0001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/visits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"visits"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Visit - Negative (Non-existent MRN)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Negative Test: Status code is 422', function () {",
+									"    pm.response.to.have.status(422);",
+									"    var res = pm.response.json();",
+									"    pm.expect(res.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"medical_record_number\": \"RM8888\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/visits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"visits"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Crypto Utilities",
+			"item": [
+				{
+					"name": "Encrypt String",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"text\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/crypto/encrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"crypto",
+								"encrypt"
+							]
+						}
+					}
+				},
+				{
+					"name": "Decrypt String",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"text\": \"U2FsdGVkX19PlVSs1SpnzXsfnqQOvfqAStkFMdoK15k=\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/crypto/decrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"crypto",
+								"decrypt"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Logout",
+			"item": [
+				{
+					"name": "Logout (Revoke Token)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}
+
